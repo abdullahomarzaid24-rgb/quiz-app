@@ -1,38 +1,47 @@
-// ضع هذا داخل script.js (استبدال جزء الـ theme الموجود)
+// script.js — نسخة نهائية ومصححة: dark mode robust + quizzes (بدون واجهة إدارة)
 (function() {
+  const TESTS_KEY = 'quiz_tests';
+  const RESULTS_KEY = 'quiz_results';
   const THEME_KEY = 'quiz_theme';
 
-  function applyTheme(theme) {
-    if (theme === 'dark') document.body.classList.add('dark');
-    else document.body.classList.remove('dark');
-  }
-
-  document.addEventListener('DOMContentLoaded', () => {
-    try {
-      const saved = localStorage.getItem(THEME_KEY);
-      applyTheme(saved === 'dark' ? 'dark' : 'light');
-
-      let btn = document.getElementById('darkToggle');
-      if (!btn) {
-        console.warn('darkToggle button not found in DOM');
-        return;
-      }
-
-      // استبدال العنصر لإزالة مستمعين قدامى ثم إضافة مستمع جديد
-      const newBtn = btn.cloneNode(true);
-      btn.parentNode.replaceChild(newBtn, btn);
-      newBtn.setAttribute('aria-pressed', document.body.classList.contains('dark') ? 'true' : 'false');
-
-      newBtn.addEventListener('click', () => {
-        const isDark = document.body.classList.toggle('dark');
-        newBtn.setAttribute('aria-pressed', isDark ? 'true' : 'false');
-        localStorage.setItem(THEME_KEY, isDark ? 'dark' : 'light');
-      });
-    } catch (e) {
-      console.error('Theme init error:', e);
+  // ----- Theme (dark mode) -----
+  (function initTheme() {
+    function applyTheme(theme) {
+      if (theme === 'dark') document.body.classList.add('dark');
+      else document.body.classList.remove('dark');
     }
-  });
-})();
+
+    document.addEventListener('DOMContentLoaded', () => {
+      try {
+        const saved = localStorage.getItem(THEME_KEY);
+        applyTheme(saved === 'dark' ? 'dark' : 'light');
+
+        let btn = document.getElementById('darkToggle');
+        if (!btn) {
+          // إذا أردت إنشاء زر تلقائيًا ضع التعليق التالي مفعلًا:
+          // const container = document.querySelector('.top-actions') || document.body;
+          // btn = document.createElement('button'); btn.id = 'darkToggle'; btn.textContent = 'وضع داكن'; container.appendChild(btn);
+          console.warn('darkToggle button not found in DOM');
+          return;
+        }
+
+        // استبدال العنصر لإزالة أي مستمعين سابقين ثم إضافة مستمع جديد آمن
+        const newBtn = btn.cloneNode(true);
+        btn.parentNode.replaceChild(newBtn, btn);
+        newBtn.setAttribute('aria-pressed', document.body.classList.contains('dark') ? 'true' : 'false');
+
+        newBtn.addEventListener('click', () => {
+          const isDark = document.body.classList.toggle('dark');
+          newBtn.setAttribute('aria-pressed', isDark ? 'true' : 'false');
+          localStorage.setItem(THEME_KEY, isDark ? 'dark' : 'light');
+        });
+      } catch (e) {
+        console.error('Theme init error:', e);
+      }
+    });
+  })();
+
+  // ----- Tests data (افتراضي) -----
   let tests = [
     {
       id: 1,
@@ -46,7 +55,7 @@
     }
   ];
 
-  // DOM عناصر
+  // ----- DOM عناصر -----
   const nameInput = document.getElementById('studentName');
   const testSelect = document.getElementById('testSelect');
   const startBtn = document.getElementById('startBtn');
@@ -63,23 +72,23 @@
   let timerInterval = null;
   let timeLeftSeconds = 0;
 
-  // Storage for tests
+  // ----- Storage helpers -----
   function saveTests() { localStorage.setItem(TESTS_KEY, JSON.stringify(tests)); }
   function loadTests() {
     const raw = localStorage.getItem(TESTS_KEY);
     if (raw) {
-      try { tests = JSON.parse(raw); } catch(e) { console.error('Failed parse tests', e); }
+      try { tests = JSON.parse(raw); } catch (e) { console.error('Failed to parse tests from storage', e); }
     }
   }
   loadTests();
 
   function renderTestOptions() {
     if (!testSelect) return;
-    testSelect.innerHTML = tests.map(t => `<option value="${t.id}">${t.title} — ${t.timeMinutes} دقيقة</option>`).join('');
+    testSelect.innerHTML = tests.map(t => `<option value="${t.id}">${escapeHtml(t.title)} — ${t.timeMinutes} دقيقة</option>`).join('');
   }
   renderTestOptions();
 
-  // Timer
+  // ----- Timer -----
   function startTimer(seconds, onEnd) {
     clearInterval(timerInterval);
     timeLeftSeconds = seconds;
@@ -95,22 +104,23 @@
   }
   function updateTimerDisplay() {
     if (!timerEl) return;
-    const mm = String(Math.floor(timeLeftSeconds / 60)).padStart(2,'0');
-    const ss = String(timeLeftSeconds % 60).padStart(2,'0');
+    const mm = String(Math.floor(timeLeftSeconds / 60)).padStart(2, '0');
+    const ss = String(timeLeftSeconds % 60).padStart(2, '0');
     timerEl.textContent = `${mm}:${ss}`;
   }
 
+  // ----- Utilities -----
   function escapeHtml(s) {
-    return (s+'').replace(/[&<>"']/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
+    return String(s).replace(/[&<>"']/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch]));
   }
 
   function renderQuestions(test) {
-    if (!questionsForm) return;
+    if (!questionsForm || !test) return;
     testTitle.textContent = test.title;
     questionsForm.innerHTML = test.questions.map((q, idx) => {
       return `
       <div class="question">
-        <h3>س${idx+1}: ${escapeHtml(q.q)}</h3>
+        <h3>س${idx + 1}: ${escapeHtml(q.q)}</h3>
         <div class="options">
           ${q.options.map((opt, i) => `
             <label>
@@ -131,7 +141,7 @@
     localStorage.setItem(RESULTS_KEY, JSON.stringify(arr));
   }
 
-  function submitAnswers(auto=false) {
+  function submitAnswers(auto = false) {
     const name = nameInput ? nameInput.value.trim() : '';
     if (!name) { alert('ادخل اسمك أولاً'); return; }
     const answers = {};
@@ -149,20 +159,20 @@
     const entry = { name, testId: currentTest.id, score, total, details: answers, created_at: new Date().toISOString() };
     saveResultLocal(entry);
 
-    if (resultDiv) resultDiv.innerHTML = `<strong>تم الإرسال!</strong><br>الاسم: ${entry.name}<br>الدرجة: ${entry.score} / ${entry.total}`;
+    if (resultDiv) resultDiv.innerHTML = `<strong>تم الإرسال!</strong><br>الاسم: ${escapeHtml(entry.name)}<br>الدرجة: ${entry.score} / ${entry.total}`;
     clearInterval(timerInterval);
     if (submitBtn) submitBtn.disabled = true;
   }
 
-  // Start exam
+  // ----- Events -----
   if (startBtn) startBtn.addEventListener('click', () => {
     const name = nameInput ? nameInput.value.trim() : '';
     if (!name) { alert('الرجاء إدخال اسمك'); return; }
     const testId = Number(testSelect.value);
     currentTest = tests.find(t => t.id === testId);
     if (!currentTest) { alert('اختبار غير موجود'); return; }
-    entryDiv.classList.add('hidden');
-    examDiv.classList.remove('hidden');
+    if (entryDiv) entryDiv.classList.add('hidden');
+    if (examDiv) examDiv.classList.remove('hidden');
     renderQuestions(currentTest);
     if (submitBtn) submitBtn.disabled = false;
     startTimer(currentTest.timeMinutes * 60, () => submitAnswers(true));
@@ -172,7 +182,7 @@
 
   if (exportBtn) exportBtn.addEventListener('click', () => {
     const raw = localStorage.getItem(RESULTS_KEY) || '[]';
-    const blob = new Blob([raw], {type: 'application/json'});
+    const blob = new Blob([raw], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
@@ -180,5 +190,14 @@
     a.click();
     URL.revokeObjectURL(url);
   });
+
+  // Expose small API (optional) for future debugging
+  window.__quizApp = {
+    testsKey: TESTS_KEY,
+    resultsKey: RESULTS_KEY,
+    themeKey: THEME_KEY,
+    getTests: () => tests,
+    reloadTests: () => { loadTests(); renderTestOptions(); }
+  };
 
 })();
