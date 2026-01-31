@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="ar">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>موقع الاختبارات</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <div class="container">
+    <h1>موقع الاختبارات</h1>
+
+    <div id="entry">
+      <label>اسم الطالب:</label>
+      <input id="studentName" placeholder="ادخل اسمك هنا" />
+      <label>اختر اختبار:</label>
+      <select id="testSelect"></select>
+      <button id="startBtn">ابدأ الاختبار</button>
+    </div>
+
+    <div id="exam" class="hidden">
+      <div class="exam-header">
+        <div id="testTitle"></div>
+        <div id="timer">00:00</div>
+      </div>
+      <form id="questionsForm"></form>
+      <div class="actions">
+        <button id="submitBtn">إرسال الإجابات</button>
+      </div>
+      <div id="result" class="result"></div>
+    </div>
+
+    <div style="margin-top:12px">
+      <button id="exportBtn">تحميل السجل (JSON)</button>
+      <small>السجل موجود على هذا الجهاز فقط (localStorage)</small>
+    </div>
+  </div>
+
+  <script src="script.js"></script>
+</body>
+</html>
