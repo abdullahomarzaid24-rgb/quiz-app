@@ -1,50 +1,38 @@
-// script.js (نسخة بدون واجهة إدارة؛ تدعم Dark Mode بطريقة robust)
-// انسخ هذا الملف بالكامل إلى script.js في مجلد المشروع ثم احفظ.
+// ضع هذا داخل script.js (استبدال جزء الـ theme الموجود)
 (function() {
-  const TESTS_KEY = 'quiz_tests';
-  const RESULTS_KEY = 'quiz_results';
   const THEME_KEY = 'quiz_theme';
 
-  // ===== Dark mode robust init =====
-  (function initTheme() {
-    function applyTheme(theme) {
-      if (theme === 'dark') document.body.classList.add('dark');
-      else document.body.classList.remove('dark');
-    }
+  function applyTheme(theme) {
+    if (theme === 'dark') document.body.classList.add('dark');
+    else document.body.classList.remove('dark');
+  }
 
-    // تطبيق الحالة المحفوظة فور تحميل DOM
-    document.addEventListener('DOMContentLoaded', () => {
-      try {
-        const saved = localStorage.getItem(THEME_KEY);
-        applyTheme(saved === 'dark' ? 'dark' : 'light');
+  document.addEventListener('DOMContentLoaded', () => {
+    try {
+      const saved = localStorage.getItem(THEME_KEY);
+      applyTheme(saved === 'dark' ? 'dark' : 'light');
 
-        // تأكد من وجود الزر ثم استبداله لإزالة أي مستمعين قدامى
-        let btn = document.getElementById('darkToggle');
-        if (!btn) {
-          // لو تحب لا تنشئ زر تلقائياً في النسخة الدائمة؛ لكن أثناء الاختبار يمكن إنشاء واحد.
-          // إذا أردت إنشاء زر تلقائياً قم بإلغاء التعليق التالي:
-          // btn = (function(){ const b=document.createElement('button'); b.id='darkToggle'; b.textContent='وضع داكن'; document.querySelector('.top-actions')?.appendChild(b); return b; })();
-          console.warn('darkToggle button not found in DOM');
-          return;
-        }
-
-        const newBtn = btn.cloneNode(true);
-        btn.parentNode.replaceChild(newBtn, btn);
-        newBtn.setAttribute('aria-pressed', document.body.classList.contains('dark') ? 'true' : 'false');
-
-        newBtn.addEventListener('click', () => {
-          const isDark = document.body.classList.toggle('dark');
-          newBtn.setAttribute('aria-pressed', isDark ? 'true' : 'false');
-          localStorage.setItem(THEME_KEY, isDark ? 'dark' : 'light');
-        });
-      } catch (e) {
-        console.error('Theme init error:', e);
+      let btn = document.getElementById('darkToggle');
+      if (!btn) {
+        console.warn('darkToggle button not found in DOM');
+        return;
       }
-    });
-  })();
-  // ===== end theme init =====
 
-  // ===== Tests data (افتراضي) =====
+      // استبدال العنصر لإزالة مستمعين قدامى ثم إضافة مستمع جديد
+      const newBtn = btn.cloneNode(true);
+      btn.parentNode.replaceChild(newBtn, btn);
+      newBtn.setAttribute('aria-pressed', document.body.classList.contains('dark') ? 'true' : 'false');
+
+      newBtn.addEventListener('click', () => {
+        const isDark = document.body.classList.toggle('dark');
+        newBtn.setAttribute('aria-pressed', isDark ? 'true' : 'false');
+        localStorage.setItem(THEME_KEY, isDark ? 'dark' : 'light');
+      });
+    } catch (e) {
+      console.error('Theme init error:', e);
+    }
+  });
+})();
   let tests = [
     {
       id: 1,
