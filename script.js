@@ -1,6 +1,10 @@
-// نسخة تعمل بدون سيرفر: الأسئلة مخزنة هنا، والنتائج تُحفظ في localStorage
+// script.js (نسخة بدون واجهة إدارة؛ لإضافة الأسئلة عدّل هذا الملف محلياً ثم git push)
 (function() {
-  const tests = [
+  const TESTS_KEY = 'quiz_tests';
+  const RESULTS_KEY = 'quiz_results';
+  const THEME_KEY = 'quiz_theme';
+
+  let tests = [
     {
       id: 1,
       title: "اختبار رياضيات بسيط",
@@ -13,6 +17,7 @@
     }
   ];
 
+  // DOM
   const nameInput = document.getElementById('studentName');
   const testSelect = document.getElementById('testSelect');
   const startBtn = document.getElementById('startBtn');
@@ -24,13 +29,40 @@
   const submitBtn = document.getElementById('submitBtn');
   const resultDiv = document.getElementById('result');
   const exportBtn = document.getElementById('exportBtn');
+  const darkToggle = document.getElementById('darkToggle');
 
   let currentTest = null;
   let timerInterval = null;
   let timeLeftSeconds = 0;
 
-  // املأ قائمة الاختبارات
-  testSelect.innerHTML = tests.map(t => `<option value="${t.id}">${t.title} — ${t.timeMinutes} دقيقة</option>`).join('');
+  // Theme
+  function loadTheme() {
+    const t = localStorage.getItem(THEME_KEY);
+    if (t === 'dark') document.body.classList.add('dark'), darkToggle.setAttribute('aria-pressed','true');
+    else document.body.classList.remove('dark'), darkToggle.setAttribute('aria-pressed','false');
+  }
+  function toggleTheme() {
+    const isDark = document.body.classList.toggle('dark');
+    darkToggle.setAttribute('aria-pressed', isDark ? 'true' : 'false');
+    localStorage.setItem(THEME_KEY, isDark ? 'dark' : 'light');
+  }
+  darkToggle.addEventListener('click', toggleTheme);
+  loadTheme();
+
+  // Storage for tests
+  function saveTests() { localStorage.setItem(TESTS_KEY, JSON.stringify(tests)); }
+  function loadTests() {
+    const raw = localStorage.getItem(TESTS_KEY);
+    if (raw) {
+      try { tests = JSON.parse(raw); } catch(e) { console.error('Failed parse tests', e); }
+    }
+  }
+  loadTests();
+
+  function renderTestOptions() {
+    testSelect.innerHTML = tests.map(t => `<option value="${t.id}">${t.title} — ${t.timeMinutes} دقيقة</option>`).join('');
+  }
+  renderTestOptions();
 
   function startTimer(seconds, onEnd) {
     clearInterval(timerInterval);
@@ -51,17 +83,21 @@
     timerEl.textContent = `${mm}:${ss}`;
   }
 
+  function escapeHtml(s) {
+    return (s+'').replace(/[&<>"']/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
+  }
+
   function renderQuestions(test) {
     testTitle.textContent = test.title;
     questionsForm.innerHTML = test.questions.map((q, idx) => {
       return `
       <div class="question">
-        <h3>س${idx+1}: ${q.q}</h3>
+        <h3>س${idx+1}: ${escapeHtml(q.q)}</h3>
         <div class="options">
           ${q.options.map((opt, i) => `
             <label>
               <input type="radio" name="q_${q.id}" value="${i}" />
-              ${opt}
+              ${escapeHtml(opt)}
             </label>
           `).join('')}
         </div>
@@ -71,15 +107,10 @@
   }
 
   function saveResultLocal(entry) {
-    const key = 'quiz_results';
-    const raw = localStorage.getItem(key);
+    const raw = localStorage.getItem(RESULTS_KEY);
     const arr = raw ? JSON.parse(raw) : [];
-    arr.unshift(entry); // الأحدث أولاً
-    localStorage.setItem(key, JSON.stringify(arr));
-  }
-
-  function submitAnswersAuto() {
-    submitAnswers(true);
+    arr.unshift(entry);
+    localStorage.setItem(RESULTS_KEY, JSON.stringify(arr));
   }
 
   function submitAnswers(auto=false) {
@@ -97,10 +128,7 @@
       if (typeof given === 'number' && given === q.answer) score += 1;
     });
     const total = currentTest.questions.length;
-    const details = answers;
-    const entry = {
-      name, testId: currentTest.id, score, total, details, created_at: new Date().toISOString()
-    };
+    const entry = { name, testId: currentTest.id, score, total, details: answers, created_at: new Date().toISOString() };
     saveResultLocal(entry);
 
     resultDiv.innerHTML = `<strong>تم الإرسال!</strong><br>الاسم: ${entry.name}<br>الدرجة: ${entry.score} / ${entry.total}`;
@@ -117,16 +145,14 @@
     entryDiv.classList.add('hidden');
     examDiv.classList.remove('hidden');
     renderQuestions(currentTest);
-    startTimer(currentTest.timeMinutes * 60, submitAnswersAuto);
+    submitBtn.disabled = false;
+    startTimer(currentTest.timeMinutes * 60, () => submitAnswers(true));
   });
 
-  submitBtn.addEventListener('click', (e) => {
-    e.preventDefault();
-    submitAnswers(false);
-  });
+  submitBtn.addEventListener('click', (e) => { e.preventDefault(); submitAnswers(false); });
 
   exportBtn.addEventListener('click', () => {
-    const raw = localStorage.getItem('quiz_results') || '[]';
+    const raw = localStorage.getItem(RESULTS_KEY) || '[]';
     const blob = new Blob([raw], {type: 'application/json'});
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
@@ -135,4 +161,5 @@
     a.click();
     URL.revokeObjectURL(url);
   });
+
 })();
