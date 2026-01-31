@@ -1,9 +1,50 @@
-// script.js (نسخة بدون واجهة إدارة؛ لإضافة الأسئلة عدّل هذا الملف محلياً ثم git push)
+// script.js (نسخة بدون واجهة إدارة؛ تدعم Dark Mode بطريقة robust)
+// انسخ هذا الملف بالكامل إلى script.js في مجلد المشروع ثم احفظ.
 (function() {
   const TESTS_KEY = 'quiz_tests';
   const RESULTS_KEY = 'quiz_results';
   const THEME_KEY = 'quiz_theme';
 
+  // ===== Dark mode robust init =====
+  (function initTheme() {
+    function applyTheme(theme) {
+      if (theme === 'dark') document.body.classList.add('dark');
+      else document.body.classList.remove('dark');
+    }
+
+    // تطبيق الحالة المحفوظة فور تحميل DOM
+    document.addEventListener('DOMContentLoaded', () => {
+      try {
+        const saved = localStorage.getItem(THEME_KEY);
+        applyTheme(saved === 'dark' ? 'dark' : 'light');
+
+        // تأكد من وجود الزر ثم استبداله لإزالة أي مستمعين قدامى
+        let btn = document.getElementById('darkToggle');
+        if (!btn) {
+          // لو تحب لا تنشئ زر تلقائياً في النسخة الدائمة؛ لكن أثناء الاختبار يمكن إنشاء واحد.
+          // إذا أردت إنشاء زر تلقائياً قم بإلغاء التعليق التالي:
+          // btn = (function(){ const b=document.createElement('button'); b.id='darkToggle'; b.textContent='وضع داكن'; document.querySelector('.top-actions')?.appendChild(b); return b; })();
+          console.warn('darkToggle button not found in DOM');
+          return;
+        }
+
+        const newBtn = btn.cloneNode(true);
+        btn.parentNode.replaceChild(newBtn, btn);
+        newBtn.setAttribute('aria-pressed', document.body.classList.contains('dark') ? 'true' : 'false');
+
+        newBtn.addEventListener('click', () => {
+          const isDark = document.body.classList.toggle('dark');
+          newBtn.setAttribute('aria-pressed', isDark ? 'true' : 'false');
+          localStorage.setItem(THEME_KEY, isDark ? 'dark' : 'light');
+        });
+      } catch (e) {
+        console.error('Theme init error:', e);
+      }
+    });
+  })();
+  // ===== end theme init =====
+
+  // ===== Tests data (افتراضي) =====
   let tests = [
     {
       id: 1,
@@ -17,7 +58,7 @@
     }
   ];
 
-  // DOM
+  // DOM عناصر
   const nameInput = document.getElementById('studentName');
   const testSelect = document.getElementById('testSelect');
   const startBtn = document.getElementById('startBtn');
@@ -29,25 +70,10 @@
   const submitBtn = document.getElementById('submitBtn');
   const resultDiv = document.getElementById('result');
   const exportBtn = document.getElementById('exportBtn');
-  const darkToggle = document.getElementById('darkToggle');
 
   let currentTest = null;
   let timerInterval = null;
   let timeLeftSeconds = 0;
-
-  // Theme
-  function loadTheme() {
-    const t = localStorage.getItem(THEME_KEY);
-    if (t === 'dark') document.body.classList.add('dark'), darkToggle.setAttribute('aria-pressed','true');
-    else document.body.classList.remove('dark'), darkToggle.setAttribute('aria-pressed','false');
-  }
-  function toggleTheme() {
-    const isDark = document.body.classList.toggle('dark');
-    darkToggle.setAttribute('aria-pressed', isDark ? 'true' : 'false');
-    localStorage.setItem(THEME_KEY, isDark ? 'dark' : 'light');
-  }
-  darkToggle.addEventListener('click', toggleTheme);
-  loadTheme();
 
   // Storage for tests
   function saveTests() { localStorage.setItem(TESTS_KEY, JSON.stringify(tests)); }
@@ -60,10 +86,12 @@
   loadTests();
 
   function renderTestOptions() {
+    if (!testSelect) return;
     testSelect.innerHTML = tests.map(t => `<option value="${t.id}">${t.title} — ${t.timeMinutes} دقيقة</option>`).join('');
   }
   renderTestOptions();
 
+  // Timer
   function startTimer(seconds, onEnd) {
     clearInterval(timerInterval);
     timeLeftSeconds = seconds;
@@ -78,6 +106,7 @@
     }, 1000);
   }
   function updateTimerDisplay() {
+    if (!timerEl) return;
     const mm = String(Math.floor(timeLeftSeconds / 60)).padStart(2,'0');
     const ss = String(timeLeftSeconds % 60).padStart(2,'0');
     timerEl.textContent = `${mm}:${ss}`;
@@ -88,6 +117,7 @@
   }
 
   function renderQuestions(test) {
+    if (!questionsForm) return;
     testTitle.textContent = test.title;
     questionsForm.innerHTML = test.questions.map((q, idx) => {
       return `
@@ -114,7 +144,7 @@
   }
 
   function submitAnswers(auto=false) {
-    const name = nameInput.value.trim();
+    const name = nameInput ? nameInput.value.trim() : '';
     if (!name) { alert('ادخل اسمك أولاً'); return; }
     const answers = {};
     currentTest.questions.forEach(q => {
@@ -131,13 +161,14 @@
     const entry = { name, testId: currentTest.id, score, total, details: answers, created_at: new Date().toISOString() };
     saveResultLocal(entry);
 
-    resultDiv.innerHTML = `<strong>تم الإرسال!</strong><br>الاسم: ${entry.name}<br>الدرجة: ${entry.score} / ${entry.total}`;
+    if (resultDiv) resultDiv.innerHTML = `<strong>تم الإرسال!</strong><br>الاسم: ${entry.name}<br>الدرجة: ${entry.score} / ${entry.total}`;
     clearInterval(timerInterval);
-    submitBtn.disabled = true;
+    if (submitBtn) submitBtn.disabled = true;
   }
 
-  startBtn.addEventListener('click', () => {
-    const name = nameInput.value.trim();
+  // Start exam
+  if (startBtn) startBtn.addEventListener('click', () => {
+    const name = nameInput ? nameInput.value.trim() : '';
     if (!name) { alert('الرجاء إدخال اسمك'); return; }
     const testId = Number(testSelect.value);
     currentTest = tests.find(t => t.id === testId);
@@ -145,13 +176,13 @@
     entryDiv.classList.add('hidden');
     examDiv.classList.remove('hidden');
     renderQuestions(currentTest);
-    submitBtn.disabled = false;
+    if (submitBtn) submitBtn.disabled = false;
     startTimer(currentTest.timeMinutes * 60, () => submitAnswers(true));
   });
 
-  submitBtn.addEventListener('click', (e) => { e.preventDefault(); submitAnswers(false); });
+  if (submitBtn) submitBtn.addEventListener('click', (e) => { e.preventDefault(); submitAnswers(false); });
 
-  exportBtn.addEventListener('click', () => {
+  if (exportBtn) exportBtn.addEventListener('click', () => {
     const raw = localStorage.getItem(RESULTS_KEY) || '[]';
     const blob = new Blob([raw], {type: 'application/json'});
     const url = URL.createObjectURL(blob);
